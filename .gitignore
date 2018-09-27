@@ -1,5 +1,6 @@
 **/.vs/
 /src/Test/Files/Certificates/*
+/src/Test/appsettings.Development.json/
 samples/ASP.NET/.vs/
 packages/
 bin/
