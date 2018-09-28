@@ -1,4 +1,4 @@
-﻿@using MPassAuth;
+﻿@using MPassSamlNuget;
 @using Microsoft.AspNetCore.Authentication.Cookies;
 @using Microsoft.AspNetCore.Authentication;
 <!DOCTYPE html>
@@ -43,7 +43,7 @@
                     }
                     else
                     {
-                        <li><a asp-page="/Login">LogIn</a></li>
+                        <li><a asp-page="/Login"asp-route-redirectUri="@Context.Request.Path.Value">LogIn</a></li>
                     }
                 </ul>
             </div>

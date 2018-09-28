@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using MPassAuth;
+using MPassSamlNuget;
 
 namespace Test
 {
@@ -48,7 +48,7 @@ namespace Test
             {
                 app.UseExceptionHandler("/Error");
             }
-            app.UseStatusCodePages();
+            //app.UseStatusCodePages();
             var builder = new ConfigurationBuilder()
                 .SetBasePath(env.ContentRootPath)
                 .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Test.Pages
 {
-    [Authorize(Roles = "test")]
+    [Authorize]
     public class AboutModel : PageModel
     {
         public string Message { get; set; }

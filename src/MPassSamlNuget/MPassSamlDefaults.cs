@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace MPassAuth
+namespace MPassSamlNuget
 {
     /// <summary>
     /// Default values related to MPass authentication handler

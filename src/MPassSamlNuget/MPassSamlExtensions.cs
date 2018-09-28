@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using System;
 
-namespace MPassAuth
+namespace MPassSamlNuget
 {
     public static class MPassSamlExtensions
     {

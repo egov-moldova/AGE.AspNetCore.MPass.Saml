@@ -12,11 +12,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MPassAuth\MPassAuth.csproj" />
+    <Folder Include="Files\" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Files\" />
+    <ProjectReference Include="..\MPassSamlNuget\MPassSamlNuget.csproj" />
   </ItemGroup>
 
   <ItemGroup>

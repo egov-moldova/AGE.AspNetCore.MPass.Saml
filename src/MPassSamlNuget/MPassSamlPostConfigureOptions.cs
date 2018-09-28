@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Options;
 using System.Text;
 
-namespace MPassAuth
+namespace MPassSamlNuget
 {
     public class MPassSamlPostConfigureOptions : IPostConfigureOptions<MPassSamlOptions>
     {

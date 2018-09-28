@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using MPassAuth;
+using MPassSamlNuget;
 
 namespace Test.Pages
 {

@@ -10,12 +10,12 @@ using static Microsoft.AspNetCore.Hosting.Internal.HostingApplication;
 
 namespace Test.Pages
 {
-    [Authorize]
     public class LoginModel: PageModel
     {
-        public async Task OnGetAsync()
+        public async Task OnGetAsync(string redirectUri)
         {
-
+            await HttpContext.ChallengeAsync(new AuthenticationProperties() { RedirectUri = redirectUri });
         }
+        
     }
 }

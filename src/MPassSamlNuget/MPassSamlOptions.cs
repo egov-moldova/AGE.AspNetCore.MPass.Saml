@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
 
-namespace MPassAuth
+namespace MPassSamlNuget
 {
     public class MPassSamlOptions : RemoteAuthenticationOptions
     {
@@ -11,8 +11,7 @@ namespace MPassAuth
             CallbackPath = "/mpass-login";
             LogoutResponsePath = "/mpass-logout";
             LogoutRequestPath = "/mpass-slo";
-            SignOutScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-            AccessDenied = "/Error";
+            SignOutScheme = CookieAuthenticationDefaults.AuthenticationScheme; 
         }
 
         public string SamlRequestIssuer { get; set; }
@@ -40,9 +39,6 @@ namespace MPassAuth
         /// Requests received on this path will cause the handler to invoke SignOut using the SignInScheme.
         /// </summary>
         public PathString LogoutRequestPath { get; set; }
-        /// <summary>
-        /// Path for AccessDenied handler.
-        /// </summary>
-        public PathString AccessDenied { get; set; }
+       
     }
 }
