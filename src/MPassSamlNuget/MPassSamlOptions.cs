@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
+using System;
+using System.Security.Cryptography.X509Certificates;
 
 namespace MPassSamlNuget
 {
@@ -11,24 +12,72 @@ namespace MPassSamlNuget
             CallbackPath = "/mpass-login";
             LogoutResponsePath = "/mpass-logout";
             LogoutRequestPath = "/mpass-slo";
-            SignOutScheme = CookieAuthenticationDefaults.AuthenticationScheme; 
         }
 
-        public string SamlRequestIssuer { get; set; }
-        public string ServiceCertificate { get; set; }
+        /// <summary>
+        /// Service certificate.
+        /// </summary>
+        public X509Certificate2 ServiceCertificate { get; set; }
+
+        /// <summary>
+        /// Path of service certificate.
+        /// </summary>
+        public string ServiceCertificatePath { get; set; }
+
+        /// <summary>
+        /// Password for service certificate.
+        /// </summary>
         public string ServiceCertificatePassword { get; set; }
-        public string IdentityProviderCertificate { get; set; }
-        public string SamlMessageTimeout { get; set; }
+
+        /// <summary>
+        /// Identity provider certificate.
+        /// </summary>
+        public X509Certificate2 IdpCertificate { get; set; }
+
+        /// <summary>
+        /// Path of identity provider certificate.
+        /// </summary>
+        public string IdentityProviderCertificatePath { get; set; }
+
+        /// <summary>
+        /// Issuer of the Saml request.
+        /// </summary>
+        public string SamlRequestIssuer { get; set; }
+
+        /// <summary>
+        /// Timeout of a Saml message.
+        /// </summary>
+        public TimeSpan SamlMessageTimeout { get; set; }
+
+        /// <summary>
+        /// URL for Saml login.
+        /// </summary>
         public string SamlLoginDestination { get; set; }
+
+        /// <summary>
+        /// URL for Saml logout.
+        /// </summary>
         public string SamlLogoutDestination { get; set; }
+
+        /// <summary>
+        /// Path of data protection keys.
+        /// </summary>
         public string DataProtectionKeysPath { get; set; }
+
+        /// <summary>
+        /// URL for service.
+        /// </summary>
         public string ServiceRootUrl { get; set; }
 
+        /// <summary>
+        /// Sign out scheme .
+        /// </summary>
         public string SignOutScheme { get; set; }
+
         /// <summary>
         /// Gets or sets the type used to secure data handled by the handler.
         /// </summary>
-        public ISecureDataFormat<string> StateDataFormat { get; set; }
+        public ISecureDataFormat<AuthenticationProperties> StateDataFormat { get; set; }
 
         /// <summary>
         /// The request path within the application's base path where the user agent will be returned after sign out from the identity provider.

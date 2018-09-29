@@ -1,25 +1,13 @@
 ﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Options;
-using System.Text;
+using System;
+using System.Security.Cryptography.X509Certificates;
 
 namespace MPassSamlNuget
 {
     public class MPassSamlPostConfigureOptions : IPostConfigureOptions<MPassSamlOptions>
     {
-        private class StringSerializer : IDataSerializer<string>
-        {
-            public string Deserialize(byte[] data)
-            {
-                return Encoding.UTF8.GetString(data);
-            }
-
-            public byte[] Serialize(string model)
-            {
-                return Encoding.UTF8.GetBytes(model);
-            }
-        }
-
         private readonly IDataProtectionProvider dataProtectionProvider;
 
         public MPassSamlPostConfigureOptions(IDataProtectionProvider dataProtectionProvider)
@@ -31,10 +19,33 @@ namespace MPassSamlNuget
         {
             options.DataProtectionProvider = options.DataProtectionProvider ?? dataProtectionProvider;
 
+            if (string.IsNullOrEmpty(options.SignOutScheme))
+            {
+                options.SignOutScheme = options.SignInScheme;
+            }
+
             if (options.StateDataFormat == null)
             {
                 var dataProtector = options.DataProtectionProvider.CreateProtector(typeof(MPassSamlHandler).FullName);
-                options.StateDataFormat = new SecureDataFormat<string>(new StringSerializer(), dataProtector);
+                options.StateDataFormat = new PropertiesDataFormat(dataProtector);
+            }
+
+            if (!string.IsNullOrEmpty(options.ServiceCertificatePath) && !string.IsNullOrEmpty(options.ServiceCertificatePassword))
+            {
+                options.ServiceCertificate = new X509Certificate2(options.ServiceCertificatePath, options.ServiceCertificatePassword, X509KeyStorageFlags.MachineKeySet);
+            }
+            else
+            {
+                throw new ApplicationException("Invalid service certificate path or password");
+            }
+
+            if (!string.IsNullOrEmpty(options.IdentityProviderCertificatePath))
+            {
+                options.IdpCertificate = new X509Certificate2(options.IdentityProviderCertificatePath);
+            }
+            else
+            {
+                throw new ApplicationException("Invalid identity provider path ");
             }
         }
     }

@@ -1,4 +1,5 @@
-﻿using Microsoft.IdentityModel.Protocols;
+﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.IdentityModel.Protocols;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,15 +16,20 @@ namespace MPassSamlNuget
         public string RequestIssuer { get; set; }
         public string RequestID { get; set; }
         public string ResponseID { get; set; }
+        public ISystemClock Clock { get; }
         public X509Certificate2 ServiceCertificate { get; set; }
         public X509Certificate2 IdentityProviderCertificate { get; set; }
         public TimeSpan SamlMessageTimeout { get; set; }
-        public string SamlResponse { get; set; }
-        public string SamlParameter { get; set; }
-        public object RelayState
+
+        public MPassSamlProtocolMessage(ISystemClock clock)
+        {
+            Clock = clock;
+        }
+
+        public string RelayState
         {
             get { return GetParameter(nameof(RelayState)); }
-            set { SetParameter(nameof(RelayState), value.ToString()); }
+            set { SetParameter(nameof(RelayState), value); }
         }
 
         public string BuildAuthnRequestForm(string assertionConsumerUrl)
@@ -33,12 +39,11 @@ namespace MPassSamlNuget
                   @"<saml2:Issuer>{4}</saml2:Issuer>" +
                   @"<saml2p:NameIDPolicy AllowCreate=""true""/>" +
                 @"</saml2p:AuthnRequest>";
-
-            return SignAndEncode(string.Format(authnRequestTemplate, RequestID, XmlConvert.ToString(DateTime.UtcNow, XmlDateTimeSerializationMode.Utc),
-                IssuerAddress, assertionConsumerUrl, RequestIssuer));
+            return SignAndEncode("SAMLRequest", String.Format(authnRequestTemplate, 
+                RequestID, XmlConvert.ToString(Clock.UtcNow), IssuerAddress, assertionConsumerUrl, RequestIssuer));
         }
 
-        public string BuildLogoutRequest( string nameID, string sessionIndex)
+        public string BuildLogoutRequest(string nameID, string sessionIndex)
         {
             const string logoutRequestTemplate =
                 @"<saml2p:LogoutRequest ID=""{0}"" Version=""2.0"" IssueInstant=""{1}"" Destination=""{2}"" xmlns:saml2p=""urn:oasis:names:tc:SAML:2.0:protocol"" xmlns:saml2=""urn:oasis:names:tc:SAML:2.0:assertion"">" +
@@ -47,11 +52,11 @@ namespace MPassSamlNuget
                     @"<saml2p:SessionIndex>{5}</saml2p:SessionIndex>" +
                 @"</saml2p:LogoutRequest>";
 
-            return SignAndEncode(String.Format(logoutRequestTemplate, RequestID, XmlConvert.ToString(DateTime.UtcNow, XmlDateTimeSerializationMode.Utc),
-                IssuerAddress, RequestIssuer, nameID, sessionIndex));
+            return SignAndEncode("SAMLRequest", string.Format(logoutRequestTemplate, 
+                RequestID, XmlConvert.ToString(Clock.UtcNow), IssuerAddress, RequestIssuer, nameID, sessionIndex));
         }
 
-        public string BuildLogoutResponse()
+        public string BuildLogoutResponse(string responseID)
         {
             const string logoutResponseTemplate =
                 @"<saml2p:LogoutResponse ID=""{0}"" Version=""2.0"" IssueInstant=""{1}"" Destination=""{2}"" InResponseTo=""{3}"" xmlns:saml2p=""urn:oasis:names:tc:SAML:2.0:protocol"" xmlns:saml2=""urn:oasis:names:tc:SAML:2.0:assertion"">" +
@@ -61,19 +66,19 @@ namespace MPassSamlNuget
                     @"</saml2p:Status>" +
                 @"</saml2p:LogoutResponse>";
 
-            return SignAndEncode(String.Format(logoutResponseTemplate, RelayState, XmlConvert.ToString(DateTime.UtcNow, XmlDateTimeSerializationMode.Utc),
-                IssuerAddress, RequestID, RequestIssuer));
+            return SignAndEncode("SAMLResponse", string.Format(logoutResponseTemplate,
+                responseID, XmlConvert.ToString(Clock.UtcNow), IssuerAddress, RequestID, RequestIssuer));
         }
 
         #region Parsing and Verification
-        private XmlDocument LoadAndVerifyResponse(string expectedDestination, IEnumerable<string> validStatusCodes, out XmlNamespaceManager ns)
+        private XmlDocument LoadAndVerifyResponse(string samlResponse, string expectedDestination, IEnumerable<string> validStatusCodes, out XmlNamespaceManager ns)
         {
             var result = new XmlDocument();
             ns = new XmlNamespaceManager(result.NameTable);
             ns.AddNamespace("saml2p", "urn:oasis:names:tc:SAML:2.0:protocol");
             ns.AddNamespace("saml2", "urn:oasis:names:tc:SAML:2.0:assertion");
 
-            result.LoadXml(Decode(SamlResponse));
+            result.LoadXml(Decode(samlResponse));
             var responseElement = result.DocumentElement;
             if (responseElement == null) throw new ApplicationException("SAML Response invalid");
             
@@ -86,7 +91,7 @@ namespace MPassSamlNuget
 
             // verify IssueInstant
             var issueInstant = responseElement.GetAttribute("IssueInstant");
-            if ((issueInstant == null) || ((DateTime.UtcNow - XmlConvert.ToDateTime(issueInstant, XmlDateTimeSerializationMode.Utc)).Duration() > SamlMessageTimeout))
+            if ((issueInstant == null) || ((Clock.UtcNow - XmlConvert.ToDateTimeOffset(issueInstant)).Duration() > SamlMessageTimeout))
             {
                 throw new ApplicationException("SAML Response expired");
             }
@@ -118,9 +123,9 @@ namespace MPassSamlNuget
             return result;
         }
 
-        public ClaimsIdentity LoadAndVerifyLoginResponse(string expectedDestination, out string sessionIndex)
+        public ClaimsIdentity LoadAndVerifyLoginResponse(string samlResponse, string expectedDestination, out string sessionIndex)
         {
-            var responseDoc = LoadAndVerifyResponse(expectedDestination, new[] { "urn:oasis:names:tc:SAML:2.0:status:Success" }, out var ns);
+            var responseDoc = LoadAndVerifyResponse(samlResponse, expectedDestination, new[] { "urn:oasis:names:tc:SAML:2.0:status:Success" }, out var ns);
 
             // get to Assertion
             var assertionNode = responseDoc.SelectSingleNode("/saml2p:Response/saml2:Assertion", ns);
@@ -161,7 +166,7 @@ namespace MPassSamlNuget
             {
                 throw new ApplicationException("The SAML Response is not for this Service");
             }
-            if (!subjectConfirmationDataNode.HasAttribute("NotOnOrAfter") || XmlConvert.ToDateTime(subjectConfirmationDataNode.GetAttribute("NotOnOrAfter"), XmlDateTimeSerializationMode.Utc) < DateTime.UtcNow)
+            if (!subjectConfirmationDataNode.HasAttribute("NotOnOrAfter") || XmlConvert.ToDateTimeOffset(subjectConfirmationDataNode.GetAttribute("NotOnOrAfter")) < Clock.UtcNow)
             {
                 throw new ApplicationException("Expired SAML Assertion");
             }
@@ -185,11 +190,10 @@ namespace MPassSamlNuget
             return identity;
         }
 
-        public XmlDocument LoadAndVerifyLogoutRequest( string expectedDestination, string expectedNameID, string expectedSessionIndex,
-            out string requestID)
+        public string LoadAndVerifyLogoutRequest(string samlRequest, string expectedDestination, string expectedNameID, string expectedSessionIndex)
         {
             var result = new XmlDocument();
-            result.LoadXml(Decode(RequestIssuer));
+            result.LoadXml(Decode(samlRequest));
 
             // verify Signature
             if (!Verify(result, IdentityProviderCertificate))
@@ -236,20 +240,18 @@ namespace MPassSamlNuget
             {
                 throw new ApplicationException("LogoutRequest does not have an ID");
             }
-            requestID = logoutRequestIDAttribute.Value;
-
-            return result;
+            return logoutRequestIDAttribute.Value;
         }
 
-        public void LoadAndVerifyLogoutResponse(string expectedDestination)
+        public void LoadAndVerifyLogoutResponse(string samlResponse, string expectedDestination)
         {
-            LoadAndVerifyResponse(expectedDestination,
+            LoadAndVerifyResponse(samlResponse, expectedDestination,
                 new[] { "urn:oasis:names:tc:SAML:2.0:status:Success", "urn:oasis:names:tc:SAML:2.0:status:PartialLogout" }, out var ns);
         }
         #endregion
 
         #region Signature
-        private string SignAndEncode(string xml)
+        private string SignAndEncode(string samlParameter, string xml)
         {
             var doc = new XmlDocument();
             doc.LoadXml(xml);
@@ -274,7 +276,7 @@ namespace MPassSamlNuget
             // insert after Issuer
             doc.DocumentElement.InsertAfter(signedXml.GetXml(), doc.DocumentElement.FirstChild);
 
-            SetParameter(SamlParameter, Encode(doc.OuterXml));
+            SetParameter(samlParameter, Encode(doc.OuterXml));
             return BuildFormPost();
         }
         #endregion

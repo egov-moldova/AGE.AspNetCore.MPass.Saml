@@ -8,18 +8,19 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Test.Pages
 {
+    [Authorize(Roles ="test")]
     public class ContactModel : PageModel
     {
         public string Message { get; set; }
 
         public void OnGet()
         {
-            try
-            {
-                if (HttpContext.User?.FindFirst("Role")?.Value == "administrator")
-                    HttpContext.ForbidAsync(new AuthenticationProperties() { RedirectUri = "/Error" });
-            }
-            catch (Exception e ) { }
+            //try
+            //{
+            //    if (HttpContext.User?.FindFirst("Role")?.Value == "administrator")
+            //        HttpContext.ForbidAsync(new AuthenticationProperties() { RedirectUri = "/Error" });
+            //}
+            //catch (Exception e ) { }
             Message = "Your contact page.";
         }
     }

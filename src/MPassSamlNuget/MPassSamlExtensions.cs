@@ -8,9 +8,6 @@ namespace MPassSamlNuget
 {
     public static class MPassSamlExtensions
     {
-        public static AuthenticationBuilder AddMPassSaml(this AuthenticationBuilder builder) 
-            => builder.AddMPassSaml(MPassSamlDefaults.AuthenticationScheme, _ => { });
-
         public static AuthenticationBuilder AddMPassSaml(this AuthenticationBuilder builder, Action<MPassSamlOptions> configureOptions)
             => builder.AddMPassSaml(MPassSamlDefaults.AuthenticationScheme, configureOptions);
 

@@ -20,20 +20,16 @@ namespace Test
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-
+            //for configure MPassSamlOptions from appsettings.json
+            services.Configure<MPassSamlOptions>(options => Configuration.GetSection("MPassSamlOptions").Bind(options));
             services.AddAuthentication(sharedOptions =>
             {
                 sharedOptions.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
                 sharedOptions.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
                 sharedOptions.DefaultChallengeScheme = MPassSamlDefaults.AuthenticationScheme;
             })
-            .AddCookie(options =>
-            {
-                options.Cookie.SameSite = SameSiteMode.None;
-            })
-            .AddMPassSaml();
-            services.AddSingleton<MPassSamlHandler>();
-            services.Configure<MPassSamlOptions>(options => Configuration.GetSection("MPassSamlOptions").Bind(options));
+            .AddCookie()
+            .AddMPassSaml(options => Configuration.GetSection("MPassSamlOptions").Bind(options));
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
         }
 
@@ -48,16 +44,7 @@ namespace Test
             {
                 app.UseExceptionHandler("/Error");
             }
-            //app.UseStatusCodePages();
-            var builder = new ConfigurationBuilder()
-                .SetBasePath(env.ContentRootPath)
-                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
-                .AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true);
             app.UseStaticFiles();
-            app.UseCookiePolicy(new CookiePolicyOptions
-            {
-                MinimumSameSitePolicy = SameSiteMode.None
-            });
             app.UseAuthentication();
             app.UseMvc();
         }
