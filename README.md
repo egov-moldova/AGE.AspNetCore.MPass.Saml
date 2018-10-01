@@ -63,7 +63,7 @@ In your **Startup.Configure** add the Authentication Middleware before **_app.Us
 ```
 app.UseAuthentication();
 ```
-To initiate authentication is required to add ""[Authorize]"" atribute to your Controller.
+To initiate authentication is required to add "**[Authorize]**" atribute to your Controller.
 
 ```
 
@@ -79,14 +79,14 @@ To initiate authentication is required to add ""[Authorize]"" atribute to your C
     }
 ```
 
-To initiate log out is required to add following code to your Logout method.
+To initiate Logout is required to add following code to your Logout method.
 
 ```
 
 await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 await HttpContext.SignOutAsync(MPassSamlDefaults.AuthenticationScheme, new AuthenticationProperties() { RedirectUri = redirectUri });
 ```
-Note: ""**redirectUri**" -> is query parameter that specify where to redirect user after Logout.
+Note: "**redirectUri**" -> is query parameter that specify where to redirect user after Logout.
 ```
 
 <li><a asp-page="/logout" asp-route-redirectUri="@Context.Request.Path.Value">LogOut - @User.Identity.Name</a></li>          
