@@ -8,7 +8,6 @@ namespace Test.Pages
 {
     public class LogoutModel : PageModel
     {
-        
         public async Task OnGetAsync(string redirectUri)
         {
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);

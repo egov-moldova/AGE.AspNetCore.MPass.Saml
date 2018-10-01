@@ -60,11 +60,6 @@ namespace MPassSamlNuget
         public string SamlLogoutDestination { get; set; }
 
         /// <summary>
-        /// Path of data protection keys.
-        /// </summary>
-        public string DataProtectionKeysPath { get; set; }
-
-        /// <summary>
         /// URL for service.
         /// </summary>
         public string ServiceRootUrl { get; set; }

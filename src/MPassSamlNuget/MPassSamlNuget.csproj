@@ -2,13 +2,16 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Authors>AGE</Authors>
     <PackageProjectUrl>https://github.com/egc-moldova/AGE.AspNetCore.MPass.Saml</PackageProjectUrl>
     <RepositoryUrl>https://github.com/egc-moldova/AGE.AspNetCore.MPass.Saml</RepositoryUrl>
     <RepositoryType />
     <PackageTags>.net; Standard; MPass; Saml; Authentication;</PackageTags>
     <Description>This is a authentication handler that use SAML.</Description>
+    <Product>MPassSaml</Product>
+    <PackageId>MPassSamlNuget</PackageId>
+    <Version>1.0.1</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,7 +19,6 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Cookies" Version="2.1.2" />
     <PackageReference Include="Microsoft.AspNetCore.Http" Version="2.1.1" />
     <PackageReference Include="Microsoft.IdentityModel.Protocols" Version="5.2.4" />
-    <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
   </ItemGroup>
 
 </Project>

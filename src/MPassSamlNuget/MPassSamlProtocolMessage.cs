@@ -179,7 +179,7 @@ namespace MPassSamlNuget
             }
 
             // transform subject attributes to claims identity
-            var identity = new ClaimsIdentity("MPass", "Username", "Role");
+            var identity = new ClaimsIdentity(MPassSamlDefaults.AuthenticationScheme, "Username", "Role");
             identity.AddClaim(new Claim("Username", nameIDNode.InnerText));
 
             foreach (XmlElement attributeElement in assertionNode.SelectNodes("saml2:AttributeStatement/saml2:Attribute", ns))
