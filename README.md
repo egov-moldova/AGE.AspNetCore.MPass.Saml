@@ -70,11 +70,11 @@ To initiate authentication is required to add "**[Authorize]**" atribute to your
     [Authorize]
     public class AboutModel : PageModel
     {
-        public string Message { get; set; }
+        public string UserName { get; set; }
 
         public void OnGet()
         {
-            Message = "Your application description page.";
+            UserName = HttpContext.User.Identity.Name;
         }
     }
 ```
