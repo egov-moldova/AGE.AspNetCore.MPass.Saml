@@ -35,7 +35,8 @@ Add the following configuration section to your **appsettings.json**:
 		"SamlMessageTimeout": "00:10:00",
 		"SamlLoginDestination": "https://testmpass.gov.md/login/saml",
 		"SamlLogoutDestination": "https://testmpass.gov.md/logout/saml",
-		"ServiceRootUrl": "https://localhost:44379"
+		"ServiceRootUrl": "https://localhost:44379",
+		"CallbackPath" = "/mpass-login"
 	}
 	...
 }

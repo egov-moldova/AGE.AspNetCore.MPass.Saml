@@ -32,7 +32,7 @@ namespace MPassSamlNuget
             set { SetParameter(nameof(RelayState), value); }
         }
 
-        public string BuildAuthnRequestForm(string assertionConsumerUrl)
+        public string BuildAuthRequestForm(string assertionConsumerUrl)
         {
             const string authnRequestTemplate =
                 @"<saml2p:AuthnRequest ID=""{0}"" Version=""2.0"" IssueInstant=""{1}"" Destination=""{2}"" AssertionConsumerServiceURL=""{3}"" xmlns:saml2p=""urn:oasis:names:tc:SAML:2.0:protocol"" xmlns:saml2=""urn:oasis:names:tc:SAML:2.0:assertion"">" +

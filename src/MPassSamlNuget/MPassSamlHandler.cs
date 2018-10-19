@@ -53,7 +53,7 @@ namespace MPassSamlNuget
                 RequestID = authnRequestID,
                 RelayState = Options.StateDataFormat.Protect(properties),
                 ServiceCertificate = Options.ServiceCertificate
-            }.BuildAuthnRequestForm(Options.ServiceRootUrl + Options.CallbackPath);
+            }.BuildAuthRequestForm(Options.ServiceRootUrl + Options.CallbackPath);
             //configuring response
             await SetResponseForm(authnRequest);
         }
