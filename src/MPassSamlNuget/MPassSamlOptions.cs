@@ -11,6 +11,7 @@ namespace MPassSamlNuget
         {
             LogoutResponsePath = "/mpass-logout";
             LogoutRequestPath = "/mpass-slo";
+            SignOutScheme = "Cookies";
         }
 
         /// <summary>
