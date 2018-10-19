@@ -18,10 +18,4 @@
     <ProjectReference Include="..\MPassSamlNuget\MPassSamlNuget.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Content Update="Pages\Logout.cshtml">
-      <Pack>$(IncludeRazorContentInPack)</Pack>
-    </Content>
-  </ItemGroup>
-
 </Project>

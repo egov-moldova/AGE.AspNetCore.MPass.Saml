@@ -32,7 +32,7 @@ namespace MPassSamlNuget
             set { SetParameter(nameof(RelayState), value); }
         }
 
-        public string BuildAuthRequestForm(string assertionConsumerUrl)
+        public string BuildAuthmRequestForm(string assertionConsumerUrl)
         {
             const string authnRequestTemplate =
                 @"<saml2p:AuthnRequest ID=""{0}"" Version=""2.0"" IssueInstant=""{1}"" Destination=""{2}"" AssertionConsumerServiceURL=""{3}"" xmlns:saml2p=""urn:oasis:names:tc:SAML:2.0:protocol"" xmlns:saml2=""urn:oasis:names:tc:SAML:2.0:assertion"">" +
@@ -123,7 +123,7 @@ namespace MPassSamlNuget
             return result;
         }
 
-        public ClaimsIdentity LoadAndVerifyLoginResponse(string samlResponse, string expectedDestination, out string sessionIndex)
+        public ClaimsIdentity LoadAndVerifyLoginResponse(string samlResponse, string expectedDestination)
         {
             var responseDoc = LoadAndVerifyResponse(samlResponse, expectedDestination, new[] { "urn:oasis:names:tc:SAML:2.0:status:Success" }, out var ns);
 
@@ -147,7 +147,6 @@ namespace MPassSamlNuget
             {
                 throw new ApplicationException("The SAML Assertion AuthnStatement does not contain a SessionIndex");
             }
-            sessionIndex = sessionIndexAttribute.Value;
 
             // get to Subject
             var subjectNode = assertionNode.SelectSingleNode("saml2:Subject", ns);
@@ -181,6 +180,7 @@ namespace MPassSamlNuget
             // transform subject attributes to claims identity
             var identity = new ClaimsIdentity(MPassSamlDefaults.AuthenticationScheme, "Username", "Role");
             identity.AddClaim(new Claim("Username", nameIDNode.InnerText));
+            identity.AddClaim(new Claim(MPassSamlDefaults.SessionIndex, sessionIndexAttribute.Value));
 
             foreach (XmlElement attributeElement in assertionNode.SelectNodes("saml2:AttributeStatement/saml2:Attribute", ns))
             {

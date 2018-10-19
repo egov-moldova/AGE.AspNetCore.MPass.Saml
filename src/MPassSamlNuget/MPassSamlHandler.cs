@@ -21,22 +21,21 @@ namespace MPassSamlNuget
         {
         }
 
-        public override async Task<bool> HandleRequestAsync()
+        public override Task<bool> HandleRequestAsync()
         {
             if (Options.LogoutResponsePath.HasValue && Options.LogoutResponsePath == Request.Path)
             {
-                return await HandleLogoutResponse();
+                return HandleLogoutResponse();
             }
             if (Options.LogoutRequestPath.HasValue && Options.LogoutRequestPath == Request.Path)
             {
-                return await HandleLogoutRequest();
+                return HandleLogoutRequest();
             }
-            return await base.HandleRequestAsync();
+            return base.HandleRequestAsync();
         }
 
         protected override async Task HandleChallengeAsync(AuthenticationProperties properties)
         {
-            properties = properties ?? new AuthenticationProperties();
             // Get the post redirect URI.
             if (string.IsNullOrWhiteSpace(properties.RedirectUri))
             {
@@ -53,14 +52,13 @@ namespace MPassSamlNuget
                 RequestID = authnRequestID,
                 RelayState = Options.StateDataFormat.Protect(properties),
                 ServiceCertificate = Options.ServiceCertificate
-            }.BuildAuthRequestForm(Options.ServiceRootUrl + Options.CallbackPath);
+            }.BuildAuthmRequestForm(Options.ServiceRootUrl + Options.CallbackPath);
             //configuring response
             await SetResponseForm(authnRequest);
         }
 
         protected override async Task<HandleRequestResult> HandleRemoteAuthenticateAsync()
         {
-            string sessionIndex = null;
             ClaimsIdentity identity = null;
             AuthenticationProperties relayState = null;
             if (HttpMethods.IsPost(Request.Method) && Request.HasFormContentType)
@@ -75,16 +73,15 @@ namespace MPassSamlNuget
                         IdentityProviderCertificate = Options.IdpCertificate,
                         SamlMessageTimeout = Options.SamlMessageTimeout,
                         RequestIssuer = Options.SamlRequestIssuer
-                    }.LoadAndVerifyLoginResponse(form[MPassSamlDefaults.SAMLResponse], Options.ServiceRootUrl + Options.CallbackPath, out sessionIndex);
+                    }.LoadAndVerifyLoginResponse(form[MPassSamlDefaults.SAMLResponse], Options.ServiceRootUrl + Options.CallbackPath);
                 }
             }
             if (identity == null)
             {
-                return HandleRequestResult.Fail("Invalid MPass response");
+                return HandleRequestResult.Fail("No MPass response");
             }
-            identity.AddClaim(new Claim(MPassSamlDefaults.SessionIndex, sessionIndex));
             return HandleRequestResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity),
-                new AuthenticationProperties() { RedirectUri = relayState.RedirectUri }, Scheme.Name));
+                new AuthenticationProperties { RedirectUri = relayState.RedirectUri }, Scheme.Name));
         }
 
         public async Task<bool> HandleLogoutResponse()
@@ -92,7 +89,7 @@ namespace MPassSamlNuget
             if (HttpMethods.IsPost(Request.Method) && Request.HasFormContentType)
             {
                 var form = await Request.ReadFormAsync();
-                if (form.ContainsKey(MPassSamlDefaults.SAMLResponse))
+                if (form.ContainsKey(MPassSamlDefaults.SAMLResponse) && form.ContainsKey(MPassSamlDefaults.RelayState))
                 {
                     var relayState = Options.StateDataFormat.Unprotect(form[MPassSamlDefaults.RelayState]);
                     new MPassSamlProtocolMessage(Clock)
@@ -101,7 +98,11 @@ namespace MPassSamlNuget
                         SamlMessageTimeout = Options.SamlMessageTimeout,
                         RequestID = relayState.Items["logoutRequestID"]
                     }.LoadAndVerifyLogoutResponse(form[MPassSamlDefaults.SAMLResponse], Options.ServiceRootUrl + Options.LogoutResponsePath);
-                    Response.Redirect(relayState.RedirectUri);
+
+                    if (!string.IsNullOrEmpty(relayState.RedirectUri))
+                    {
+                        Response.Redirect(relayState.RedirectUri);
+                    }
                     return true;
                 }
             }
@@ -117,15 +118,20 @@ namespace MPassSamlNuget
                 var form = await Request.ReadFormAsync();
                 if (form.ContainsKey(MPassSamlDefaults.SAMLRequest))
                 {
+                    var user = await Context.AuthenticateAsync(Options.SignOutScheme);
+
+                    var expectedNameID = user?.Principal?.Identity?.Name;
+                    var expectedSessionIndex = user?.Principal?.FindFirst(MPassSamlDefaults.SessionIndex)?.Value;
                     logoutRequestID = new MPassSamlProtocolMessage(Clock)
                     {
                         IdentityProviderCertificate = Options.IdpCertificate,
                         SamlMessageTimeout = Options.SamlMessageTimeout,
-                    }.LoadAndVerifyLogoutRequest(form[MPassSamlDefaults.SAMLRequest], Options.ServiceRootUrl + Options.LogoutRequestPath, Context.User?.Identity?.Name, Context.User?.FindFirst(MPassSamlDefaults.SessionIndex)?.Value);
+                    }.LoadAndVerifyLogoutRequest(form[MPassSamlDefaults.SAMLRequest], Options.ServiceRootUrl + Options.LogoutRequestPath, expectedNameID, expectedSessionIndex);
                 }
                 relayState = form[MPassSamlDefaults.RelayState];
             }
-            await Response.HttpContext.SignOutAsync(Options.SignOutScheme);
+
+            await Context.SignOutAsync(Options.SignOutScheme);
 
             var logoutResponse = new MPassSamlProtocolMessage(Clock)
             {
@@ -136,13 +142,22 @@ namespace MPassSamlNuget
                 ServiceCertificate = Options.ServiceCertificate
             }.BuildLogoutResponse(GenerateID());
             await SetResponseForm(logoutResponse);
+
             return true;
         }
 
         //prepare and send logoutRequest to MPass
         public async Task SignOutAsync(AuthenticationProperties properties)
         {
+            var target = ResolveTarget(Options.ForwardSignOut);
+            if (target != null)
+            {
+                await Context.SignOutAsync(target, properties);
+                return;
+            }
+
             if (!Context.User.Identity.IsAuthenticated) return;
+
             properties = properties ?? new AuthenticationProperties();
             // Get the post redirect URI.
             if (string.IsNullOrWhiteSpace(properties.RedirectUri))

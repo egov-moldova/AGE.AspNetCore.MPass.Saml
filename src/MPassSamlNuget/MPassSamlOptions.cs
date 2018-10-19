@@ -9,9 +9,9 @@ namespace MPassSamlNuget
     {
         public MPassSamlOptions()
         {
+            CallbackPath = "/mpass-login";
             LogoutResponsePath = "/mpass-logout";
             LogoutRequestPath = "/mpass-slo";
-            SignOutScheme = "Cookies";
         }
 
         /// <summary>

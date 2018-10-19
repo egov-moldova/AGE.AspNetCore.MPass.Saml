@@ -59,36 +59,69 @@ services.AddAuthentication(sharedOptions =>
 .AddMPassSaml(options => Configuration.GetSection("MPassSamlOptions").Bind(options));
 ```
 
-In your **Startup.Configure** add the Authentication Middleware before **_app.UseMvc()_**:
+In your **Startup.Configure** add the Authentication Middleware.
 
 ```
 app.UseAuthentication();
 ```
-To initiate authentication is required to add "**[Authorize]**" atribute to your Controller.
+Authentication is started automatically if you are not already authenticated with code ->
 
 ```
 
-    [Authorize]
-    public class AboutModel : PageModel
-    {
-        public string UserName { get; set; }
+	// DefaultAuthenticateScheme causes User to be set
+    var user = context.User;
 
-        public void OnGet()
-        {
-            UserName = HttpContext.User.Identity.Name;
-        }
+    // Not authenticated
+    if (user == null || !user.Identities.Any(identity => identity.IsAuthenticated))
+    {
+        // This is what [Authorize] calls
+        await context.ChallengeAsync();
+
+        return;
     }
 ```
 
-To initiate Logout is required to add following code to your Logout method.
-
+LogOut is initiated then **Sign Out** and **Sign Out Remote** are pressed.
+For local logout is used next part of code.
 ```
 
-await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-await HttpContext.SignOutAsync(MPassSamlDefaults.AuthenticationScheme, new AuthenticationProperties() { RedirectUri = redirectUri });
-```
-Note: "**redirectUri**" -> is query parameter that specify where to redirect user after Logout.
+	if (context.Request.Path.Equals("/signout"))
+    {
+        await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        await WriteHtmlAsync(context.Response, async res =>
+        {
+            await context.Response.WriteAsync($"<h1>Signed out {HtmlEncode(context.User.Identity.Name)}</h1>");
+            await context.Response.WriteAsync("<a class=\"btn btn-link\" href=\"/\">Sign In</a>");
+        });
+        return;
+    }
 ```
 
-<li><a asp-page="/logout" asp-route-redirectUri="@Context.Request.Path.Value">LogOut - @User.Identity.Name</a></li>          
+For remote logout is used next part of code.
+```
+
+	if (context.Request.Path.Equals("/signout-remote"))
+    {
+        if (context.User.Identity.IsAuthenticated)
+        {
+            // Redirects
+            await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            await context.SignOutAsync(MPassSamlDefaults.AuthenticationScheme,
+                new AuthenticationProperties()
+                {
+                    RedirectUri = "/signedout"
+                });
+            return;
+        }
+        else
+        {
+            await WriteHtmlAsync(context.Response, async res =>
+            {
+                await context.Response.WriteAsync($"<h1>Signed out {HtmlEncode(context.User.Identity.Name)}</h1>");
+                await context.Response.WriteAsync("<a class=\"btn btn-link\" href=\"/\">Sign In</a>");
+            });
+            return;
+        }
+
+    }
 ```
