@@ -81,7 +81,7 @@ Authentication is started automatically if you are not already authenticated wit
     }
 ```
 
-LogOut is initiated then **Sign Out** and **Sign Out Remote** are pressed.
+LogOut is initiated then **Sign Out** and **Sign Out Remote** buttons are pressed.  
 For local logout is used next part of code.
 ```
 
