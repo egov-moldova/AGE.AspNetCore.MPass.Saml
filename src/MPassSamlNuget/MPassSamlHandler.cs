@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
-
+using MPassSamlNuget.Events;
 
 namespace MPassSamlNuget
 {
@@ -20,6 +20,15 @@ namespace MPassSamlNuget
          : base(options, logger, encoder, clock)
         {
         }
+
+        protected new MPassSamlEvents Events
+        {
+            get { return (MPassSamlEvents)base.Events; }
+            set { base.Events = value; }
+        }
+
+        protected override Task<object> CreateEventsAsync() => Task.FromResult<object>(new MPassSamlEvents());
+
 
         public override Task<bool> HandleRequestAsync()
         {
@@ -99,6 +108,28 @@ namespace MPassSamlNuget
                         RequestID = relayState.Items["logoutRequestID"]
                     }.LoadAndVerifyLogoutResponse(form[MPassSamlDefaults.SAMLResponse], Options.ServiceRootUrl + Options.LogoutResponsePath);
 
+                    var signOut = new RemoteSignOutContext(Context, Scheme, Options)
+                    {
+                        Properties = relayState,
+                    };
+
+                    await Events.SignedOutCallbackRedirect(signOut);
+                    if (signOut.Result != null)
+                    {
+                        if (signOut.Result.Handled)
+                        {
+                            return true;
+                        }
+                        if (signOut.Result.Skipped)
+                        {
+                            return false;
+                        }
+                        if (signOut.Result.Failure != null)
+                        {
+                            throw new InvalidOperationException("An error was returned from the SignedOutCallbackRedirect event.", signOut.Result.Failure);
+                        }
+                    }
+                    
                     if (!string.IsNullOrEmpty(relayState.RedirectUri))
                     {
                         Response.Redirect(relayState.RedirectUri);
@@ -131,19 +162,48 @@ namespace MPassSamlNuget
                 relayState = form[MPassSamlDefaults.RelayState];
             }
 
+            var remoteSignOutContext = new RemoteSignOutContext(Context, Scheme, Options);
+            await Events.RemoteSignOut(remoteSignOutContext);
+
+            if (remoteSignOutContext.Result != null)
+            {
+                if (remoteSignOutContext.Result.Handled)
+                {
+                    await SetRemoteLogoutResponse(logoutRequestID, relayState);
+                    return true;
+                }
+                if (remoteSignOutContext.Result.Skipped)
+                {
+                    return false;
+                }
+                if (remoteSignOutContext.Result.Failure != null)
+                {
+                    throw new InvalidOperationException("An error was returned from the RemoteSignOut event.", remoteSignOutContext.Result.Failure);
+                }
+            }
             await Context.SignOutAsync(Options.SignOutScheme);
 
-            var logoutResponse = new MPassSamlProtocolMessage(Clock)
+            await SetResponseForm(new MPassSamlProtocolMessage(Clock)
             {
                 RelayState = relayState,
                 RequestID = logoutRequestID,
                 IssuerAddress = Options.SamlLogoutDestination,
                 RequestIssuer = Options.SamlRequestIssuer,
                 ServiceCertificate = Options.ServiceCertificate
-            }.BuildLogoutResponse(GenerateID());
-            await SetResponseForm(logoutResponse);
-
+            }.BuildLogoutResponse(GenerateID()));
             return true;
+        }
+
+        private Task SetRemoteLogoutResponse(string logoutRequestID, string relayState)
+        {
+            return SetResponseForm(new MPassSamlProtocolMessage(Clock)
+            {
+                RelayState = relayState,
+                RequestID = logoutRequestID,
+                IssuerAddress = Options.SamlLogoutDestination,
+                RequestIssuer = Options.SamlRequestIssuer,
+                ServiceCertificate = Options.ServiceCertificate
+            }.BuildLogoutResponse(GenerateID()));
         }
 
         //prepare and send logoutRequest to MPass
@@ -166,15 +226,14 @@ namespace MPassSamlNuget
             }
             var logoutRequestID = GenerateID();
             properties.Items[nameof(logoutRequestID)] = logoutRequestID;
-            var logoutRequest = new MPassSamlProtocolMessage(Clock)
-            {
-                RequestID = logoutRequestID,
-                IssuerAddress = Options.SamlLogoutDestination,
-                RequestIssuer = Options.SamlRequestIssuer,
-                ServiceCertificate = Options.ServiceCertificate,
-                RelayState = Options.StateDataFormat.Protect(properties)
-            }.BuildLogoutRequest(Context.User?.Identity?.Name, Context.User.FindFirst(MPassSamlDefaults.SessionIndex)?.Value);
-            await SetResponseForm(logoutRequest);
+            await SetResponseForm(new MPassSamlProtocolMessage(Clock)
+               {
+                   RequestID = logoutRequestID,
+                   IssuerAddress = Options.SamlLogoutDestination,
+                   RequestIssuer = Options.SamlRequestIssuer,
+                   ServiceCertificate = Options.ServiceCertificate,
+                   RelayState = Options.StateDataFormat.Protect(properties)
+               }.BuildLogoutRequest(Context.User?.Identity?.Name, Context.User.FindFirst(MPassSamlDefaults.SessionIndex)?.Value));
         }
 
         private static string GenerateID() => "_" + Guid.NewGuid();

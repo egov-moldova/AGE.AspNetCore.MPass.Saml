@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MPassSamlNuget;
+using MPassSamlNuget.Events;
 
 namespace Test
 {
@@ -32,9 +33,26 @@ namespace Test
                 sharedOptions.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
                 sharedOptions.DefaultChallengeScheme = MPassSamlDefaults.AuthenticationScheme;
             })
-            .AddCookie()
-            .AddMPassSaml(options => Configuration.GetSection("MPassSamlOptions").Bind(options));
-
+            .AddCookie(op => op.Cookie.SameSite = SameSiteMode.None)
+            .AddMPassSaml(options =>
+            {
+                Configuration.GetSection("MPassSamlOptions").Bind(options);
+                options.Events = new MPassSamlEvents()
+                {
+                    OnRemoteSignOut = async context =>
+                    {
+                        context.HandleResponse();
+                        var user = await context.HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                        var userName = user?.Principal?.Identity?.Name;
+                        await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                    },
+                    OnSignedOutCallbackRedirect = async context =>
+                    {
+                        context.HandleResponse();
+                        context.Response.Redirect("/doneRedirect");
+                    }
+                };
+            });
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
         }
 
@@ -53,6 +71,14 @@ namespace Test
             app.UseAuthentication();
             app.Run(async context =>
             {
+                if (context.Request.Path.Equals("/doneRedirect"))
+                {
+                    await WriteHtmlAsync(context.Response, async res =>
+                    {
+                        await res.WriteAsync($"<h1>You have been forced to redirect..</h1>");   
+                    });
+                    return;
+                }
                 if (context.Request.Path.Equals("/signedout"))
                 {
                     await WriteHtmlAsync(context.Response, async res =>
@@ -74,7 +100,7 @@ namespace Test
                     return;
                 }
 
-                if (context.Request.Path.Equals("/signout-remote"))
+                if(context.Request.Path.Equals("/signout-remote"))
                 {
                     if (context.User.Identity.IsAuthenticated)
                     {
@@ -156,6 +182,6 @@ namespace Test
 
         private static string HtmlEncode(string content) =>
             string.IsNullOrEmpty(content) ? string.Empty : HtmlEncoder.Default.Encode(content);
- 
+
     }
 }

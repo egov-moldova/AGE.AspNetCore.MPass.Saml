@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
+using MPassSamlNuget.Events;
 using System;
 using System.Security.Cryptography.X509Certificates;
 
@@ -83,6 +84,15 @@ namespace MPassSamlNuget
         /// Requests received on this path will cause the handler to invoke SignOut using the SignInScheme.
         /// </summary>
         public PathString LogoutRequestPath { get; set; }
-       
+
+        /// <summary>
+        /// Gets or sets the <see cref="OpenIdConnectEvents"/> to notify when processing OpenIdConnect messages.
+        /// </summary>
+        public new MPassSamlEvents Events
+        {
+            get => (MPassSamlEvents)base.Events;
+            set => base.Events = value;
+        }
+
     }
 }
