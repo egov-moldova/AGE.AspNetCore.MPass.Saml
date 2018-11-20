@@ -1,4 +1,4 @@
-﻿namespace MPassSamlNuget
+﻿namespace AGE.AspNetCore.MPass.Saml
 {
     /// <summary>
     /// Default values related to MPass authentication handler

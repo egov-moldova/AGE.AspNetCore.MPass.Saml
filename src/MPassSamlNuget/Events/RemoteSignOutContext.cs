@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 
-namespace MPassSamlNuget.Events
+namespace AGE.AspNetCore.MPass.Saml.Events
 {
     public class RemoteSignOutContext : RemoteAuthenticationContext<MPassSamlOptions>
     {

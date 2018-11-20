@@ -1,10 +1,10 @@
-﻿using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Http;
-using MPassSamlNuget.Events;
-using System;
+﻿using System;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http;
+using AGE.AspNetCore.MPass.Saml.Events;
 
-namespace MPassSamlNuget
+namespace AGE.AspNetCore.MPass.Saml
 {
     public class MPassSamlOptions : RemoteAuthenticationOptions
     {

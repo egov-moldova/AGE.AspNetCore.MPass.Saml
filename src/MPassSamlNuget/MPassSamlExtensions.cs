@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using System;
 
-namespace MPassSamlNuget
+namespace AGE.AspNetCore.MPass.Saml
 {
     public static class MPassSamlExtensions
     {

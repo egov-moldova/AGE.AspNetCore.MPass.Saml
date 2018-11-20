@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
+using AGE.AspNetCore.MPass.Saml;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
@@ -11,8 +12,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using MPassSamlNuget;
-using MPassSamlNuget.Events;
 
 namespace Test
 {
@@ -37,21 +36,6 @@ namespace Test
             .AddMPassSaml(options =>
             {
                 Configuration.GetSection("MPassSamlOptions").Bind(options);
-                options.Events = new MPassSamlEvents()
-                {
-                    OnRemoteSignOut = async context =>
-                    {
-                        context.HandleResponse();
-                        var user = await context.HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                        var userName = user?.Principal?.Identity?.Name;
-                        await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                    },
-                    OnSignedOutCallbackRedirect = async context =>
-                    {
-                        context.HandleResponse();
-                        context.Response.Redirect("/doneRedirect");
-                    }
-                };
             });
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
         }
@@ -71,14 +55,6 @@ namespace Test
             app.UseAuthentication();
             app.Run(async context =>
             {
-                if (context.Request.Path.Equals("/doneRedirect"))
-                {
-                    await WriteHtmlAsync(context.Response, async res =>
-                    {
-                        await res.WriteAsync($"<h1>You have been forced to redirect..</h1>");   
-                    });
-                    return;
-                }
                 if (context.Request.Path.Equals("/signedout"))
                 {
                     await WriteHtmlAsync(context.Response, async res =>

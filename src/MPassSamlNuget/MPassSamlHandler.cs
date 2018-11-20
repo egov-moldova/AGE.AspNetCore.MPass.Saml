@@ -8,9 +8,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
-using MPassSamlNuget.Events;
+using AGE.AspNetCore.MPass.Saml.Events;
 
-namespace MPassSamlNuget
+namespace AGE.AspNetCore.MPass.Saml
 {
     public class MPassSamlHandler : RemoteAuthenticationHandler<MPassSamlOptions>, IAuthenticationSignOutHandler
     {
@@ -215,7 +215,7 @@ namespace MPassSamlNuget
                 await Context.SignOutAsync(target, properties);
                 return;
             }
-
+           
             if (!Context.User.Identity.IsAuthenticated) return;
 
             properties = properties ?? new AuthenticationProperties();

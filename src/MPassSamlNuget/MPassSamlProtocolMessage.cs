@@ -9,7 +9,7 @@ using System.Security.Cryptography.Xml;
 using System.Text;
 using System.Xml;
 
-namespace MPassSamlNuget
+namespace AGE.AspNetCore.MPass.Saml
 {
     public class MPassSamlProtocolMessage : AuthenticationProtocolMessage
     {

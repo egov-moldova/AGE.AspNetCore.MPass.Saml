@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 using System;
 using System.Security.Cryptography.X509Certificates;
 
-namespace MPassSamlNuget
+namespace AGE.AspNetCore.MPass.Saml
 {
     public class MPassSamlPostConfigureOptions : IPostConfigureOptions<MPassSamlOptions>
     {
