@@ -5,7 +5,7 @@ VisualStudioVersion = 15.0.28010.2026
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test", "Test\Test.csproj", "{F75C23C8-34AA-4157-9C3D-56783B027FDE}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MPassSamlNuget", "MPassSamlNuget\MPassSamlNuget.csproj", "{BD0BAF15-7981-471B-8CB9-3096213EB72F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AGE.AspNetCore.MPass.Saml", "MPassSamlNuget\AGE.AspNetCore.MPass.Saml.csproj", "{BD0BAF15-7981-471B-8CB9-3096213EB72F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

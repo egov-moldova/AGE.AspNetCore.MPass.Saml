@@ -11,7 +11,9 @@
     <Description>This package contains an authentication handler for MPass implementing SAML 2.0 protocol for ASP.NET Core.</Description>
     <Product>AGE.AspNetCore.MPass.Saml</Product>
     <PackageId>AGE.AspNetCore.MPass.Saml</PackageId>
-    <Version>1.0.5</Version>
+    <Version>1.0.6</Version>
+    <AssemblyName>AGE.AspNetCore.MPass.Saml</AssemblyName>
+    <RootNamespace>AGE.AspNetCore.MPass.Saml</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
