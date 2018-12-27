@@ -71,7 +71,7 @@ namespace AGE.AspNetCore.MPass.Saml
         }
 
         #region Parsing and Verification
-        private XmlDocument LoadAndVerifyResponse(string samlResponse, string expectedDestination, IEnumerable<string> validStatusCodes, out XmlNamespaceManager ns)
+        private (XmlDocument Document, string Error) LoadAndVerifyResponse(string samlResponse, string expectedDestination, IEnumerable<string> validStatusCodes, out XmlNamespaceManager ns)
         {
             var result = new XmlDocument();
             ns = new XmlNamespaceManager(result.NameTable);
@@ -80,101 +80,101 @@ namespace AGE.AspNetCore.MPass.Saml
 
             result.LoadXml(Decode(samlResponse));
             var responseElement = result.DocumentElement;
-            if (responseElement == null) throw new ApplicationException("SAML Response invalid");
-            
+            if (responseElement == null) return (null, "SAML Response invalid");
 
             // verify Signature
             if (!Verify(result, IdentityProviderCertificate))
             {
-                throw new ApplicationException("SAML Response signature invalid");
+                return (null, "SAML Response signature invalid");
             }
 
             // verify IssueInstant
             var issueInstant = responseElement.GetAttribute("IssueInstant");
             if ((issueInstant == null) || ((Clock.UtcNow - XmlConvert.ToDateTimeOffset(issueInstant)).Duration() > SamlMessageTimeout))
             {
-                throw new ApplicationException("SAML Response expired");
+                return (null, "SAML Response expired");
             }
 
             // verify Destination, according to [SAMLBind, 3.5.5.2]
             var responseDestination = responseElement.GetAttribute("Destination");
             if ((responseDestination == null) || !responseDestination.Equals(expectedDestination, StringComparison.CurrentCultureIgnoreCase))
             {
-                throw new ApplicationException("SAML Response is not for this Service");
+                return (null, "SAML Response is not for this Service");
             }
 
             // verify InResponseTo
             if (responseElement.GetAttribute("InResponseTo") != RequestID)
             {
-                throw new ApplicationException("SAML Response not expected");
+                return (null, "SAML Response not expected");
             }
 
             // verify StatusCode
             var statusCodeValueAttribute = responseElement.SelectSingleNode("saml2p:Status/saml2p:StatusCode/@Value", ns);
             if (statusCodeValueAttribute == null)
             {
-                throw new ApplicationException("SAML Response does not contain a StatusCode Value");
+                return (null, "SAML Response does not contain a StatusCode Value");
             }
             if (!validStatusCodes.Contains(statusCodeValueAttribute.Value, StringComparer.OrdinalIgnoreCase))
             {
                 var statusMessageNode = responseElement.SelectSingleNode("saml2p:Status/saml2p:StatusMessage", ns);
-                throw new ApplicationException($"Received failed SAML Response, status code: '{statusCodeValueAttribute.Value}', status message: '{statusMessageNode?.InnerText}'");
+                return (null, $"Received failed SAML Response, status code: '{statusCodeValueAttribute.Value}', status message: '{statusMessageNode?.InnerText}'");
             }
-            return result;
+            return (result, null);
         }
 
-        public ClaimsIdentity LoadAndVerifyLoginResponse(string samlResponse, string expectedDestination)
+        public HandleRequestResult LoadAndVerifyLoginResponse(string samlResponse, string expectedDestination, string redirectUri, string schemeName)
         {
-            var responseDoc = LoadAndVerifyResponse(samlResponse, expectedDestination, new[] { "urn:oasis:names:tc:SAML:2.0:status:Success" }, out var ns);
+            var verifyResponse = LoadAndVerifyResponse(samlResponse, expectedDestination, new[] { "urn:oasis:names:tc:SAML:2.0:status:Success" }, out var ns);
+            if (verifyResponse.Error != null) return HandleRequestResult.Fail(verifyResponse.Error);
 
             // get to Assertion
-            var assertionNode = responseDoc.SelectSingleNode("/saml2p:Response/saml2:Assertion", ns);
+            var assertionNode = verifyResponse.Document.SelectSingleNode("/saml2p:Response/saml2:Assertion", ns);
             if (assertionNode == null)
             {
-                throw new ApplicationException("SAML Response does not contain an Assertion");
+                return HandleRequestResult.Fail("SAML Response does not contain an Assertion");
             }
 
             // verify Audience
             var audienceNode = assertionNode.SelectSingleNode("saml2:Conditions/saml2:AudienceRestriction/saml2:Audience", ns);
             if ((audienceNode == null) || (audienceNode.InnerText != RequestIssuer))
             {
-                throw new ApplicationException("The SAML Assertion is not for this Service");
+                return HandleRequestResult.Fail("The SAML Assertion is not for this Service");
             }
 
             // get SessionIndex
             var sessionIndexAttribute = assertionNode.SelectSingleNode("saml2:AuthnStatement/@SessionIndex", ns);
             if (sessionIndexAttribute == null)
             {
-                throw new ApplicationException("The SAML Assertion AuthnStatement does not contain a SessionIndex");
+                return HandleRequestResult.Fail("The SAML Assertion AuthnStatement does not contain a SessionIndex");
             }
 
             // get to Subject
             var subjectNode = assertionNode.SelectSingleNode("saml2:Subject", ns);
             if (subjectNode == null)
             {
-                throw new ApplicationException("No Subject found in SAML Assertion");
+                return HandleRequestResult.Fail("No Subject found in SAML Assertion");
             }
 
             // verify SubjectConfirmationData, according to [SAMLProf, 4.1.4.3]
             var subjectConfirmationDataNode = subjectNode.SelectSingleNode("saml2:SubjectConfirmation/saml2:SubjectConfirmationData", ns) as XmlElement;
             if (subjectConfirmationDataNode == null)
             {
-                throw new ApplicationException("No Subject/SubjectConfirmation/SubjectConfirmationData found in SAML Assertion");
+                return HandleRequestResult.Fail("No Subject/SubjectConfirmation/SubjectConfirmationData found in SAML Assertion");
             }
             if (!subjectConfirmationDataNode.GetAttribute("Recipient").Equals(expectedDestination, StringComparison.CurrentCultureIgnoreCase))
             {
-                throw new ApplicationException("The SAML Response is not for this Service");
+                return HandleRequestResult.Fail("The SAML Response is not for this Service");
             }
             if (!subjectConfirmationDataNode.HasAttribute("NotOnOrAfter") || XmlConvert.ToDateTimeOffset(subjectConfirmationDataNode.GetAttribute("NotOnOrAfter")) < Clock.UtcNow)
             {
-                throw new ApplicationException("Expired SAML Assertion");
+                return HandleRequestResult.Fail("Expired SAML Assertion");
             }
 
             // get NameID, which is normally an IDNP
             var nameIDNode = subjectNode.SelectSingleNode("saml2:NameID", ns);
             if (nameIDNode == null)
             {
-                throw new ApplicationException("No Subject/NameID found in SAML Assertion");
+                return HandleRequestResult.Fail("No Subject/NameID found in SAML Assertion");
             }
 
             // transform subject attributes to claims identity
@@ -187,10 +187,11 @@ namespace AGE.AspNetCore.MPass.Saml
                 var attributeName = attributeElement.GetAttribute("Name");
                 identity.AddClaims(attributeElement.SelectNodes("saml2:AttributeValue", ns)?.Cast<XmlElement>().Select(e => e.InnerXml).Select(value => new Claim(attributeName, value)));
             }
-            return identity;
+            return HandleRequestResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity),
+                new AuthenticationProperties { RedirectUri = redirectUri }, schemeName));
         }
 
-        public string LoadAndVerifyLogoutRequest(string samlRequest, string expectedDestination, string expectedNameID, string expectedSessionIndex)
+        public (string LogoutRequestID, string Error) LoadAndVerifyLogoutRequest(string samlRequest, string expectedDestination, string expectedNameID, string expectedSessionIndex)
         {
             var result = new XmlDocument();
             result.LoadXml(Decode(samlRequest));
@@ -198,7 +199,7 @@ namespace AGE.AspNetCore.MPass.Saml
             // verify Signature
             if (!Verify(result, IdentityProviderCertificate))
             {
-                throw new ApplicationException("LogoutRequest signature invalid");
+                return (null, "LogoutRequest signature invalid");
             }
 
             var ns = new XmlNamespaceManager(result.NameTable);
@@ -210,43 +211,44 @@ namespace AGE.AspNetCore.MPass.Saml
             if ((issueInstantAttribute == null) ||
                 ((DateTime.UtcNow - XmlConvert.ToDateTime(issueInstantAttribute.Value, XmlDateTimeSerializationMode.Utc)).Duration() > SamlMessageTimeout))
             {
-                throw new ApplicationException("The LogoutRequest is expired");
+                return (null, "The LogoutRequest is expired");
             }
 
             // verify Destination, according to [SAMLBind, 3.5.5.2]
             var requestDestination = result.SelectSingleNode("/saml2p:LogoutRequest/@Destination", ns);
             if ((requestDestination == null) || !requestDestination.Value.Equals(expectedDestination, StringComparison.CurrentCultureIgnoreCase))
             {
-                throw new ApplicationException("The LogoutRequest is not for this Service");
+                return (null, "The LogoutRequest is not for this Service");
             }
 
             // verify NameID
             var nameIDElement = result.SelectSingleNode("/saml2p:LogoutRequest/saml2:NameID", ns);
             if ((nameIDElement == null) || ((expectedNameID != null) && !nameIDElement.InnerText.Equals(expectedNameID, StringComparison.CurrentCultureIgnoreCase)))
             {
-                throw new ApplicationException("The LogoutRequest received is for a different user");
+                return (null, "The LogoutRequest received is for a different user");
             }
 
             // verify SessionIndex
             var sessionIndexElement = result.SelectSingleNode("/saml2p:LogoutRequest/saml2p:SessionIndex", ns);
             if ((sessionIndexElement == null) || ((expectedSessionIndex != null) && !sessionIndexElement.InnerText.Equals(expectedSessionIndex, StringComparison.CurrentCultureIgnoreCase)))
             {
-                throw new ApplicationException("The LogoutRequest is not expected in this user session");
+                return (null, "The LogoutRequest is not expected in this user session");
             }
 
             // get LogoutRequest ID
             var logoutRequestIDAttribute = result.SelectSingleNode("/saml2p:LogoutRequest/@ID", ns);
             if (logoutRequestIDAttribute == null)
             {
-                throw new ApplicationException("LogoutRequest does not have an ID");
+                return (null, "LogoutRequest does not have an ID");
             }
-            return logoutRequestIDAttribute.Value;
+            return (logoutRequestIDAttribute.Value, null);
         }
 
-        public void LoadAndVerifyLogoutResponse(string samlResponse, string expectedDestination)
+        public bool LoadAndVerifyLogoutResponse(string samlResponse, string expectedDestination)
         {
-            LoadAndVerifyResponse(samlResponse, expectedDestination,
+            var verifyResponse = LoadAndVerifyResponse(samlResponse, expectedDestination,
                 new[] { "urn:oasis:names:tc:SAML:2.0:status:Success", "urn:oasis:names:tc:SAML:2.0:status:PartialLogout" }, out var ns);
+            return verifyResponse.Error == null;
         }
         #endregion
 
