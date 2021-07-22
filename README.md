@@ -13,7 +13,7 @@ MPass accepts certificates issued by [STISC](https://stisc.gov.md/).
 
 ### Installing
 
-Install the following package from [NuGet](https://www.nuget.org/packages/AGE.AspNetCore.MPass.Saml/1.0.1)
+Install the following package from [NuGet](https://www.nuget.org/packages/AGE.AspNetCore.MPass.Saml/1.0.8)
 
 ```
 Install-Package AGE.AspNetCore.MPass.Saml
@@ -51,7 +51,6 @@ Add the following code snippet to your **Startup.ConfigureServices** method:
 services.AddAuthentication(sharedOptions =>
 {
     sharedOptions.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-    sharedOptions.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
     sharedOptions.DefaultChallengeScheme = MPassSamlDefaults.AuthenticationScheme;
 })
 .AddCookie()

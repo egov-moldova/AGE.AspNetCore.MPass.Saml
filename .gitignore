@@ -1,5 +1,5 @@
 .vs/
-/src/MPassSamlNuget/Test/Files/Certificates/*
+/src/Test/Files/Certificates/*
 packages/
 bin/
 obj/
