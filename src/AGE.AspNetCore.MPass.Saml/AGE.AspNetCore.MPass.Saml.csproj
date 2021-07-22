@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Authors>AGE</Authors>
+    <PackageProjectUrl>https://github.com/egc-moldova/AGE.AspNetCore.MPass.Saml</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/egc-moldova/AGE.AspNetCore.MPass.Saml</RepositoryUrl>
+    <RepositoryType />
+    <PackageTags>.net; MPass; Saml; Authentication;</PackageTags>
+    <Description>This package contains an authentication handler for MPass implementing SAML 2.0 protocol for ASP.NET Core.</Description>
+    <Product>AGE.AspNetCore.MPass.Saml</Product>
+    <PackageId>AGE.AspNetCore.MPass.Saml</PackageId>
+    <Version>1.0.8</Version>
+    <AssemblyName>AGE.AspNetCore.MPass.Saml</AssemblyName>
+    <RootNamespace>AGE.AspNetCore.MPass.Saml</RootNamespace>
+    <LangVersion>8</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.IdentityModel.Protocols" Version="6.8.0" />
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="5.0.0" />
+  </ItemGroup>
+
+</Project>

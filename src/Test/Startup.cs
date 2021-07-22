@@ -7,9 +7,7 @@ using AGE.AspNetCore.MPass.Saml;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -21,38 +19,46 @@ namespace Test
         {
             Configuration = configuration;
         }
-        public IConfiguration Configuration { get; }
+        private IConfiguration Configuration { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.Configure<MPassSamlOptions>(MPassSamlDefaults.AuthenticationScheme, Configuration.GetSection("MPassSamlOptions"));
+
             services.AddAuthentication(sharedOptions =>
             {
-                sharedOptions.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-                sharedOptions.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+                sharedOptions.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
                 sharedOptions.DefaultChallengeScheme = MPassSamlDefaults.AuthenticationScheme;
             })
-            .AddCookie(op => op.Cookie.SameSite = SameSiteMode.None)
-            .AddMPassSaml(options =>
+            .AddCookie(options =>
             {
-                Configuration.GetSection("MPassSamlOptions").Bind(options);
-            });
-            services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
+                options.Cookie.Name = "auth";
+                options.Cookie.SameSite = SameSiteMode.None;
+            })
+            .AddMPassSaml();
+
+            services.AddControllers();
+
+            services.AddHealthChecks()
+                .AddMPassSamlHealthCheck(MPassSamlDefaults.AuthenticationScheme);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(IApplicationBuilder app)
         {
-            if (env.IsDevelopment())
-            {
-                app.UseDeveloperExceptionPage();
-            }
-            else
-            {
-                app.UseExceptionHandler("/Error");
-            }
+            app.UseDeveloperExceptionPage();
+            
             app.UseStaticFiles();
+            app.UseHealthChecks("/health");
             app.UseAuthentication();
+
+            app.UseRouting();
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapControllers();
+            });
+
             app.Run(async context =>
             {
                 if (context.Request.Path.Equals("/signedout"))
@@ -67,7 +73,8 @@ namespace Test
 
                 if (context.Request.Path.Equals("/signout"))
                 {
-                    await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                    if (context.User.Identities.Any(identity => identity.IsAuthenticated))
+                        await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                     await WriteHtmlAsync(context.Response, async res =>
                     {
                         await context.Response.WriteAsync($"<h1>Signed out {HtmlEncode(context.User.Identity.Name)}</h1>");
@@ -76,29 +83,25 @@ namespace Test
                     return;
                 }
 
-                if(context.Request.Path.Equals("/signout-remote"))
+                if (context.Request.Path.Equals("/signout-remote"))
                 {
                     if (context.User.Identity.IsAuthenticated)
                     {
                         // Redirects
                         await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                        await context.SignOutAsync(MPassSamlDefaults.AuthenticationScheme,
-                            new AuthenticationProperties()
-                            {
-                                RedirectUri = "/signedout"
-                            });
-                        return;
-                    }
-                    else
-                    {
-                        await WriteHtmlAsync(context.Response, async res =>
+                        await context.SignOutAsync(MPassSamlDefaults.AuthenticationScheme, new AuthenticationProperties
                         {
-                            await context.Response.WriteAsync($"<h1>Signed out {HtmlEncode(context.User.Identity.Name)}</h1>");
-                            await context.Response.WriteAsync("<a class=\"btn btn-link\" href=\"/\">Sign In</a>");
+                            RedirectUri = "/signedout"
                         });
                         return;
                     }
 
+                    await WriteHtmlAsync(context.Response, async res =>
+                    {
+                        await context.Response.WriteAsync($"<h1>Signed out {HtmlEncode(context.User.Identity.Name)}</h1>");
+                        await context.Response.WriteAsync("<a class=\"btn btn-link\" href=\"/\">Sign In</a>");
+                    });
+                    return;
                 }
 
                 // DefaultAuthenticateScheme causes User to be set
@@ -124,7 +127,6 @@ namespace Test
                 });
             });
         }
-
         private static async Task WriteHtmlAsync(HttpResponse response, Func<HttpResponse, Task> writeContent)
         {
             var bootstrap = "<link rel=\"stylesheet\" href=\"https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css\" integrity=\"sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u\" crossorigin=\"anonymous\">";
@@ -155,7 +157,6 @@ namespace Test
             }
             await response.WriteAsync("</table>");
         }
-
         private static string HtmlEncode(string content) =>
             string.IsNullOrEmpty(content) ? string.Empty : HtmlEncoder.Default.Encode(content);
 
