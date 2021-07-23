@@ -11,7 +11,6 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace Test.Controllers
 {
-    [Route("[controller]")]
     public class HomeController : Controller
     {
         // GET: HomeController
@@ -47,11 +46,13 @@ namespace Test.Controllers
         [HttpGet("signout")]
         public async Task<ActionResult> SignOut()
         {
+            if(HttpContext.User.Identities.Any(identity => identity.IsAuthenticated))
+                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             await WriteHtmlAsync(HttpContext.Response, async res =>
-                    {
-                        await res.WriteAsync($"<h1>You have been signed out.</h1>");
-                        await res.WriteAsync("<a class=\"btn btn-link\" href=\"/\">Sign In</a>");
-                    });
+            {
+                await HttpContext.Response.WriteAsync($"<h1>Signed out {HtmlEncode(HttpContext.User.Identity.Name)}</h1>");
+                await HttpContext.Response.WriteAsync("<a class=\"btn btn-link\" href=\"/\">Sign In</a>");
+            });
             return new EmptyResult();
         }
 
@@ -81,7 +82,7 @@ namespace Test.Controllers
             await WriteHtmlAsync(HttpContext.Response, async res =>
             {
                 await HttpContext.Response.WriteAsync($"<h1>Signed out {HtmlEncode(HttpContext.User.Identity.Name)}</h1>");
-                await HttpContext.Response.WriteAsync("<a class=\"btn btn-link\" href=\"/home/\">Sign In</a>");
+                await HttpContext.Response.WriteAsync("<a class=\"btn btn-link\" href=\"/\">Sign In</a>");
             });
             return new EmptyResult();
         }

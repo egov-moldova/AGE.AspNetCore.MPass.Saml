@@ -13,7 +13,7 @@ MPass accepts certificates issued by [STISC](https://stisc.gov.md/).
 
 ### Installing
 
-Install the following package from [NuGet](https://www.nuget.org/packages/AGE.AspNetCore.MPass.Saml/1.0.8)
+Install the following package from [NuGet](https://www.nuget.org/packages/AGE.AspNetCore.MPass.Saml/1.0.9)
 
 ```
 Install-Package AGE.AspNetCore.MPass.Saml
@@ -35,7 +35,7 @@ Add the following configuration section to your **appsettings.json**:
 		"SamlMessageTimeout": "00:10:00",
 		"SamlLoginDestination": "https://testmpass.gov.md/login/saml",
 		"SamlLogoutDestination": "https://testmpass.gov.md/logout/saml",
-		"ServiceRootUrl": "https://localhost:44379"
+		"ServiceRootUrl": "https://localhost:5000"
 	}
 	...
 }
@@ -48,78 +48,23 @@ Please note that your Service must be published using **https** protocol.
 
 Add the following code snippet to your **Startup.ConfigureServices** method:
 ```
+services.Configure<MPassSamlOptions>(MPassSamlDefaults.AuthenticationScheme, Configuration.GetSection("MPassSamlOptions"));
+
 services.AddAuthentication(sharedOptions =>
 {
-    sharedOptions.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-    sharedOptions.DefaultChallengeScheme = MPassSamlDefaults.AuthenticationScheme;
+	sharedOptions.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+	sharedOptions.DefaultChallengeScheme = MPassSamlDefaults.AuthenticationScheme;
 })
-.AddCookie()
-.AddMPassSaml(options => Configuration.GetSection("MPassSamlOptions").Bind(options));
+.AddCookie(options =>
+{
+	options.Cookie.Name = "auth";
+	options.Cookie.SameSite = SameSiteMode.None;
+})
+.AddMPassSaml();
 ```
 
 In your **Startup.Configure** add the Authentication Middleware.
 
 ```
 app.UseAuthentication();
-```
-Authentication is started automatically if you are not already authenticated with code ->
-
-```
-
-	// DefaultAuthenticateScheme causes User to be set
-    var user = context.User;
-
-    // Not authenticated
-    if (user == null || !user.Identities.Any(identity => identity.IsAuthenticated))
-    {
-        // This is what [Authorize] calls
-        await context.ChallengeAsync();
-
-        return;
-    }
-```
-
-LogOut is initiated then **Sign Out** and **Sign Out Remote** buttons are pressed.  
-For local logout is used next part of code.
-```
-
-	if (context.Request.Path.Equals("/signout"))
-    {
-        await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-        await WriteHtmlAsync(context.Response, async res =>
-        {
-            await context.Response.WriteAsync($"<h1>Signed out {HtmlEncode(context.User.Identity.Name)}</h1>");
-            await context.Response.WriteAsync("<a class=\"btn btn-link\" href=\"/\">Sign In</a>");
-        });
-        return;
-    }
-```
-
-For remote logout is used next part of code.
-```
-
-	if (context.Request.Path.Equals("/signout-remote"))
-    {
-        if (context.User.Identity.IsAuthenticated)
-        {
-            // Redirects
-            await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            await context.SignOutAsync(MPassSamlDefaults.AuthenticationScheme,
-                new AuthenticationProperties()
-                {
-                    RedirectUri = "/signedout"
-                });
-            return;
-        }
-        else
-        {
-            await WriteHtmlAsync(context.Response, async res =>
-            {
-                await context.Response.WriteAsync($"<h1>Signed out {HtmlEncode(context.User.Identity.Name)}</h1>");
-                await context.Response.WriteAsync("<a class=\"btn btn-link\" href=\"/\">Sign In</a>");
-            });
-            return;
-        }
-
-    }
 ```
